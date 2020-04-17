@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:jms="http://www.springframework.org/schema/integration/jms"
+       xsi:schemaLocation="
+		   http://www.springframework.org/schema/beans
+		   http://www.springframework.org/schema/beans/spring-beans.xsd
+		   http://www.springframework.org/schema/integration/jms
+		   http://www.springframework.org/schema/integration/jms/spring-integration-jms.xsd"
+>
+
+    <jms:message-driven-channel-adapter
+            id="incoming_data"
+            connection-factory="connectionFactory"
+            channel="json_to_data"
+            destination-name="input.queue"
+            header-mapper="jmsHeaderMapper"
+    />
+
+    <bean id="queueJmsTemplate" class="org.springframework.jms.core.JmsTemplate">
+        <property name="connectionFactory" ref="connectionFactory" />
+    </bean>
+
+    <bean id="topicJmsTemplate" class="org.springframework.jms.core.JmsTemplate">
+        <property name="connectionFactory" ref="connectionFactory" />
+        <property name="pubSubDomain" value="true" />
+    </bean>
+
+    <si:channel id="foo_out"/>
+    <si:channel id="bar_out"/>
+
+    <jms:outbound-channel-adapter jms-template="topicJmsTemplate" destination-name="foo.topic"
+                                  channel="foo_out" header-mapper="jmsHeaderMapper"/>
+
+    <jms:outbound-channel-adapter jms-template="queueJmsTemplate" destination-name="bar.queue"
+                                  channel="bar_out" header-mapper="jmsHeaderMapper"/>
+
+</beans>

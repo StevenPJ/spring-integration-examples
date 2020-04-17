@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:si="http://www.springframework.org/schema/integration"
+       xmlns:jms="http://www.springframework.org/schema/integration/jms"
+       xmlns="http://www.springframework.org/schema/beans"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+       http://www.springframework.org/schema/integration http://www.springframework.org/schema/integration/spring-integration.xsd
+	   http://www.springframework.org/schema/integration/jms http://www.springframework.org/schema/integration/jms/spring-integration-jms.xsd">
+
+    <jms:message-driven-channel-adapter
+            id="incoming_data"
+            connection-factory="connectionFactory"
+            channel="json_to_data"
+            destination-name="input.queue"
+            header-mapper="jmsHeaderMapper"
+    />
+
+    <si:json-to-object-transformer input-channel="json_to_data"
+                                   output-channel="data_filter"
+                                   type="com.sainsburys.beans.Data"/>
+
+    <si:chain input-channel="data_filter" output-channel="data_router">
+        <si:filter ref="dataFilter"/>
+    </si:chain>
+
+    <si:recipient-list-router input-channel="data_router">
+        <si:recipient channel="foo_sender"/>
+        <si:recipient channel="bar_sender"/>
+    </si:recipient-list-router>
+
+    <si:chain input-channel="foo_sender" output-channel="foo_out">
+        <si:transformer ref="dataToFooTransformer"/>
+        <si:object-to-json-transformer/>
+    </si:chain>
+
+    <si:chain input-channel="bar_sender" output-channel="bar_out">
+        <si:transformer ref="dataToBarTransformer"/>
+        <si:object-to-json-transformer/>
+    </si:chain>
+
+    <bean id="queueJmsTemplate" class="org.springframework.jms.core.JmsTemplate">
+        <property name="connectionFactory" ref="connectionFactory" />
+    </bean>
+
+    <bean id="topicJmsTemplate" class="org.springframework.jms.core.JmsTemplate">
+        <property name="connectionFactory" ref="connectionFactory" />
+        <property name="pubSubDomain" value="true" />
+    </bean>
+
+    <jms:outbound-channel-adapter jms-template="topicJmsTemplate" destination-name="foo.topic"
+                                  channel="foo_out" header-mapper="jmsHeaderMapper"/>
+
+    <jms:outbound-channel-adapter jms-template="queueJmsTemplate" destination-name="bar.queue"
+                                  channel="bar_out" header-mapper="jmsHeaderMapper"/>
+
+    <si:channel id="foo_out"/>
+    <si:channel id="bar_out"/>
+
+</beans>
